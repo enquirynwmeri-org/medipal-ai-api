@@ -90,3 +90,52 @@ app.post("/transcribe-dictation", upload.single("audio"), async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 API running on port ${PORT}`));
+const express = require('express');
+const axios = require('axios');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+// Root check
+app.get('/', (req, res) => {
+  res.send('Medipal AI backend is running.');
+});
+
+// GPT-4.1 route
+app.post('/generate-text', async (req, res) => {
+  const { prompt } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
+
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4-0613', // Change to gpt-3.5-turbo if using cheaper version
+        messages: [
+          { role: 'system', content: 'You are a helpful clinical assistant for NHS doctors.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.5
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        }
+      }
+    );
+
+    res.json({ result: response.data.choices[0].message.content });
+  } catch (error) {
+    console.error('OpenAI Error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to generate response from OpenAI.' });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`API running on port ${PORT}`);
+});
