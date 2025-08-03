@@ -3,11 +3,11 @@ const axios = require("axios");
 const multer = require("multer");
 const cors = require("cors");
 const FormData = require("form-data"); // Required for Whisper
-
 require("dotenv").config();
 
 const app = express();
 const upload = multer();
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(cors());
@@ -15,6 +15,40 @@ app.use(cors());
 // ✅ Root route
 app.get("/", (req, res) => {
   res.send("✅ Medipal AI backend is running!");
+});
+
+// ✅ GPT-4.1 route
+app.post("/generate-text", async (req, res) => {
+  const { prompt } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({ error: "Prompt is required" });
+  }
+
+  try {
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4-0613", // use 'gpt-4-1106-preview' or gpt-3.5-turbo as needed
+        messages: [
+          { role: "system", content: "You are a helpful clinical assistant for NHS doctors." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.5
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        }
+      }
+    );
+
+    res.json({ result: response.data.choices[0].message.content });
+  } catch (error) {
+    console.error("OpenAI Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to generate response from OpenAI." });
+  }
 });
 
 // ✅ POST /polish-letter - Clinical letter polishing using GPT-4.1
@@ -88,53 +122,7 @@ app.post("/transcribe-dictation", upload.single("audio"), async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 API running on port ${PORT}`));
-const express = require('express');
-const axios = require('axios');
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-
-// Root check
-app.get('/', (req, res) => {
-  res.send('Medipal AI backend is running.');
-});
-
-// GPT-4.1 route
-app.post('/generate-text', async (req, res) => {
-  const { prompt } = req.body;
-
-  if (!prompt) {
-    return res.status(400).json({ error: 'Prompt is required' });
-  }
-
-  try {
-    const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-4-0613', // Change to gpt-3.5-turbo if using cheaper version
-        messages: [
-          { role: 'system', content: 'You are a helpful clinical assistant for NHS doctors.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.5
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-        }
-      }
-    );
-
-    res.json({ result: response.data.choices[0].message.content });
-  } catch (error) {
-    console.error('OpenAI Error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to generate response from OpenAI.' });
-  }
-});
-
+// ✅ Start server
 app.listen(PORT, () => {
-  console.log(`API running on port ${PORT}`);
+  console.log(`🚀 API running on port ${PORT}`);
 });
