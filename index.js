@@ -2,12 +2,18 @@ const express = require("express");
 const axios = require("axios");
 const multer = require("multer");
 const cors = require("cors");
+const FormData = require("form-data");
 require("dotenv").config();
 
 const app = express();
 const upload = multer();
 app.use(express.json());
 app.use(cors());
+
+// Root check
+app.get("/", (req, res) => {
+  res.send("✅ Medipal AI backend is running.");
+});
 
 // POST /polish-letter
 app.post("/polish-letter", async (req, res) => {
@@ -24,7 +30,8 @@ app.post("/polish-letter", async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json"
         }
       }
     );
@@ -38,7 +45,10 @@ app.post("/polish-letter", async (req, res) => {
 app.post("/transcribe-dictation", upload.single("audio"), async (req, res) => {
   try {
     const formData = new FormData();
-    formData.append("file", req.file.buffer, req.file.originalname);
+    formData.append("file", req.file.buffer, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype
+    });
     formData.append("model", "whisper-1");
 
     const response = await axios.post(
@@ -51,6 +61,7 @@ app.post("/transcribe-dictation", upload.single("audio"), async (req, res) => {
         }
       }
     );
+
     res.send({ transcript: response.data.text });
   } catch (error) {
     res.status(500).send({ error: error.message });
@@ -58,4 +69,4 @@ app.post("/transcribe-dictation", upload.single("audio"), async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`API running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ API running on port ${PORT}`));
