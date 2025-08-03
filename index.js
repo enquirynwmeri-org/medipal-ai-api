@@ -1,128 +1,55 @@
-const express = require("express");
-const axios = require("axios");
-const multer = require("multer");
-const cors = require("cors");
-const FormData = require("form-data"); // Required for Whisper
-require("dotenv").config();
+// Load environment variables
+require('dotenv').config();
+
+// Import packages
+const express = require('express');
+const axios = require('axios');
+const cors = require('cors');
 
 const app = express();
-const upload = multer();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(express.json());
 app.use(cors());
 
-// ✅ Root route
-app.get("/", (req, res) => {
-  res.send("✅ Medipal AI backend is running!");
+// Root route (health check)
+app.get('/', (req, res) => {
+  res.send('✅ Medipal AI backend is running.');
 });
 
-// ✅ GPT-4.1 route
-app.post("/generate-text", async (req, res) => {
-  const { prompt } = req.body;
-
-  if (!prompt) {
-    return res.status(400).json({ error: "Prompt is required" });
-  }
+// GPT-4.1 endpoint
+app.post('/generate-text', async (req, res) => {
+  const userPrompt = req.body.prompt;
 
   try {
     const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+      'https://api.openai.com/v1/chat/completions',
       {
-        model: "gpt-4-0613", // use 'gpt-4-1106-preview' or gpt-3.5-turbo as needed
+        model: 'gpt-4-1106-preview',
         messages: [
-          { role: "system", content: "You are a helpful clinical assistant for NHS doctors." },
-          { role: "user", content: prompt }
+          { role: 'system', content: 'You are Medipal AI assistant.' },
+          { role: 'user', content: userPrompt }
         ],
-        temperature: 0.5
+        temperature: 0.7
       },
       {
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
         }
       }
     );
 
-    res.json({ result: response.data.choices[0].message.content });
+    const output = response.data.choices[0].message.content;
+    res.json({ result: output });
   } catch (error) {
-    console.error("OpenAI Error:", error.response?.data || error.message);
-    res.status(500).json({ error: "Failed to generate response from OpenAI." });
+    console.error('OpenAI error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Something went wrong with OpenAI request.' });
   }
 });
 
-// ✅ POST /polish-letter - Clinical letter polishing using GPT-4.1
-app.post("/polish-letter", async (req, res) => {
-  const { inputText } = req.body;
-  if (!inputText) {
-    return res.status(400).json({ error: "Missing inputText in request body." });
-  }
-
-  try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4-1106-preview",
-        messages: [
-          {
-            role: "system",
-            content: "You are a clinical letter assistant. Use formal, clear, safe British English in all letters."
-          },
-          {
-            role: "user",
-            content: `Polish this clinic letter:\n\n${inputText}`
-          }
-        ]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    const output = response.data.choices?.[0]?.message?.content || "No content returned";
-    res.status(200).json({ output });
-  } catch (error) {
-    console.error("Error in /polish-letter:", error.message);
-    res.status(500).json({ error: "Failed to polish letter", details: error.message });
-  }
-});
-
-// ✅ POST /transcribe-dictation - Audio transcription using Whisper
-app.post("/transcribe-dictation", upload.single("audio"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "No audio file uploaded." });
-  }
-
-  try {
-    const formData = new FormData();
-    formData.append("file", req.file.buffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype
-    });
-    formData.append("model", "whisper-1");
-
-    const response = await axios.post(
-      "https://api.openai.com/v1/audio/transcriptions",
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-        }
-      }
-    );
-
-    res.status(200).json({ transcript: response.data.text });
-  } catch (error) {
-    console.error("Error in /transcribe-dictation:", error.message);
-    res.status(500).json({ error: "Transcription failed", details: error.message });
-  }
-});
-
-// ✅ Start server
+// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 API running on port ${PORT}`);
+  console.log(`✅ API running on port ${PORT}`);
 });
